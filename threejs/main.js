@@ -1,3 +1,10 @@
+/* ------------------------------------------------------------
+    Alunos:
+    Larissa Dalimar Lima Viana              DRE: 117213958
+    Miguel Santos de Araujo do Nascimento   DRE: 115191914
+    Tarefa Prática 3 - Computação Gráfica 2020.1
+*/
+
 // ThreeJS variables
 var camera, scene, renderer;
 
@@ -8,17 +15,6 @@ var controls;
 var stats;
 
 // Objects in Scene
-// Os planestas tem 2 variáveis em particular usadas pro movimento de revolução
-// planetaDistance -> É a distância entre o planeta e o Sol
-// planetaRevolutionAngle -> É o ângulo do movimento de revolução, que é incrementado a cada chamada da função animate()
-// A Lua também tem essa variáveis, com a diferença de q a distância é entre ela e a Terra
-// Os ângulos de revolução são inicializados como 0, e vão aumentado conforme o objeto faz o movimento de revolução
-// As distâncias são inicializadas com a posição Z do objeto.
-// Ao inicializar o objeto, guardo sua posição Z como distância pra poder usar no movimento circular da revolução
-// Em outras palavras, uso coordenadas polares pro movimento de revolução, onde o raio é a distância do objeto até o pivot, e o pivot é:
-//// - Para os planetas: posição do Sol
-//// - Para a Lua: posição da Terra
-
 // Sun
 var sun;
 var sunRadius;
@@ -82,7 +78,7 @@ var jupiterRevolutionAngle;
 
 // Saturn, Saturn ring
 var saturn, saturnRing;
-var saturnRadius, saturnRingInnerRadius, saturnRingOuterRadius;
+var saturnRadius, saturnRingInnerRadius, saturnRingOuterRadius, saturnRingTilt;
 var saturnRotationTimeInDays = 0.5;
 var saturnRevolutionTimeInDays = Math.round(365*29.46);
 var saturnRotationSpeed;
@@ -162,6 +158,11 @@ plutoRadius = sunRadius * 0.02;
 // Assim, encontrei a velocidade de rotação de Mercúrio
 // Posso generalizar para qualquer valor de dias que leva para um planeta arbitrário terminar uma rotação
 // planetaVelocidadeRotacao = terraVelocidadeRotacao/planetaTempoRotacao
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// OBS: As variáveis planetaRotationSpeed e planetaRevolutionSpeed, apesar do nome, servem para realizar os movimentos de rotação e de revolução.
+// então elas funcionam mais como um dA, sendo 'A' o ângulo da rotação realizada no movimento, do que como velocidades propriamente ditas
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 mercuryRotationSpeed = earthRotationSpeed / mercuryRotationTimeInDays;
 venusRotationSpeed = earthRotationSpeed / venusRotationTimeInDays;
 moonRotationSpeed = earthRotationSpeed / moonRotationTimeInDays;
@@ -172,8 +173,7 @@ uranusRotationSpeed = earthRotationSpeed / uranusRotationTimeInDays;
 neptuneRotationSpeed = earthRotationSpeed / neptuneRotationTimeInDays;
 plutoRotationSpeed = earthRotationSpeed / plutoRotationTimeInDays;
 
-// Pras velocidades de revolução, pego o inverso do tempo de revolução de cada planeta
-// Assim, passando 365 dias, a terra completou 365/365 dias de sua revolução, e um planeta completou 365/k de seus k dias de revolução
+// Pras velocidades de revolução, pego o inverso do tempo de revolução de cada planeta e multiplico pelo produto entre a velocidade de rotação da Terra com seu tempo de revolução (365 dias)
 var proporcao = earthRevolutionTimeInDays * earthRotationSpeed;
 
 mercuryRevolutionSpeed = proporcao / mercuryRevolutionTimeInDays;
@@ -190,6 +190,13 @@ plutoRevolutionSpeed = proporcao / plutoRevolutionTimeInDays;
 // Variáveis usadas pra controlar a velocidade dos movimentos, caso eu queira mudar a velocidade da animação
 var globalRotationSpeed;
 var globalRevolutionSpeed;
+
+// Vetores usados pro movimento de revolução
+// centerRevolution é inicializado no (0, 0, 0), pois como o planeta é filho do Sol, a posição do Sol é a posição (0, 0, 0) do planeta
+//// (raciocínio análogo pra Lua e anel de Saturno com seus respectivos planetas como parent)
+// axisRevolution é o eixo y, pois a revolução realiza movimento circular no plano XZ
+var centerRevolution = new THREE.Vector3(0, 0, 0);
+var axisRevolution = new THREE.Vector3(0, 1, 0);
 
 function init() {
 
@@ -214,65 +221,66 @@ function init() {
     sunlight.position.set( sun.position.x, sun.position.y, sun.position.z );
     
     // Mercury
-    mercury = createSphere(mercuryRadius, 20, 'texture/mercury.jpg');
+    mercury = createSphere(mercuryRadius, 20, 'texture/mercury.jpg', 'Phong');
     mercury.position.z = - (mercuryRadius + sunRadius)*1.25;
     mercuryDistance = mercury.position.z;
     mercuryRevolutionAngle = Math.PI;
 
     // Venus
-    venus = createSphere(venusRadius, 20, 'texture/venus.jpg');
+    venus = createSphere(venusRadius, 20, 'texture/venus.jpg', 'Phong');
     venus.position.z = mercury.position.z - (venusRadius + mercuryRadius)*3;
     venusDistance = venus.position.z;
     venusRevolutionAngle = Math.PI;
 
     // Earth
-    earth = createSphere(earthRadius, 20, 'texture/earth.jpg');
+    earth = createSphere(earthRadius, 20, 'texture/earth.jpg', 'Phong');
     earth.position.z = venus.position.z - (earthRadius + venusRadius)*3;
     earthDistance = earth.position.z;
     earthRevolutionAngle = Math.PI;
     // Moon
-    moon = createSphere(moonRadius, 20, 'texture/moon.jpg');
+    moon = createSphere(moonRadius, 20, 'texture/moon.jpg', 'Phong');
     moon.position.z = - (earthRadius + moonRadius) * 1.5;
     moonDistance = moon.position.z;
     moonRevolutionAngle = Math.PI;
 
     // Mars
-    mars = createSphere(marsRadius, 20, 'texture/mars.jpg');
+    mars = createSphere(marsRadius, 20, 'texture/mars.jpg', 'Phong');
     mars.position.z = earth.position.z - ( marsRadius + earthRadius)*3;
     marsDistance = mars.position.z;
     marsRevolutionAngle = Math.PI;
 
     // Jupiter
-    jupiter = createSphere(jupiterRadius, 20, 'texture/jupiter.jpg');
+    jupiter = createSphere(jupiterRadius, 20, 'texture/jupiter.jpg', 'Phong');
     jupiter.position.z = mars.position.z - ( jupiterRadius + marsRadius)*2;
     jupiterDistance = jupiter.position.z;
     jupiterRevolutionAngle = Math.PI;
     jupiterRevolutionSpeed = jupiterRevolutionSpeed / Math.abs(jupiterDistance);
 
     // Saturn
-    saturn = createSphere(saturnRadius, 20, 'texture/saturn.jpg');
+    saturn = createSphere(saturnRadius, 20, 'texture/saturn.jpg', 'Phong');
     saturn.position.z = jupiter.position.z - (saturnRadius + jupiterRadius)*2;
     saturnDistance = saturn.position.z;
     saturnRevolutionAngle = Math.PI;
     saturnRevolutionSpeed = saturnRevolutionSpeed / Math.abs(mercuryDistance);
     // Saturn Ring
-    saturnRing = createRing(saturnRingInnerRadius, saturnRingOuterRadius, 20, 'texture/saturn_ring.png');
-    saturnRing.rotation.x = -Math.PI/4;
+    saturnRingTilt = -Math.PI/4;
+    saturnRing = createRing(saturnRingInnerRadius, saturnRingOuterRadius, 20, 'texture/saturn_ring.png', 'Phong');
+    saturnRing.rotateX(saturnRingTilt);
 
     // Uranus
-    uranus = createSphere(uranusRadius, 20, 'texture/uranus.jpg');
+    uranus = createSphere(uranusRadius, 20, 'texture/uranus.jpg', 'Phong');
     uranus.position.z = saturn.position.z - (uranusRadius + saturnRadius)*2;
     uranusDistance = uranus.position.z;
     uranusRevolutionAngle = Math.PI;
 
     // Neptune
-    neptune = createSphere(neptuneRadius, 20, 'texture/neptune.jpg');
+    neptune = createSphere(neptuneRadius, 20, 'texture/neptune.jpg', 'Phong');
     neptune.position.z = uranus.position.z - (neptuneRadius + uranusRadius)*2;
     neptuneDistance = neptune.position.z;
     neptuneRevolutionAngle = Math.PI;
     
     // Pluto
-    pluto = createSphere(plutoRadius, 20, 'texture/pluto.jpg');
+    pluto = createSphere(plutoRadius, 20, 'texture/pluto.jpg', 'Phong');
     pluto.position.z = neptune.position.z - (plutoRadius + neptuneRadius)*2;
     plutoDistance = pluto.position.z;
     plutoRevolutionAngle = Math.PI;
@@ -298,7 +306,6 @@ function init() {
     sun.add(pluto);
     sun.add(sunlight);
     scene.add(sun);
-
     
     // Adding both renderer and stats to the Web page, also adjusting OrbitControls
     stats = new Stats();
@@ -343,95 +350,76 @@ function animate() {
     stats.update();
     renderer.render( scene, camera );
 
-    // Lembrando que Vênus e Urano fazem rotação no sentido horário, e os outros no sentido   
+    // Lembrando que Vênus e Urano fazem rotação no sentido horário, e os outros no sentido anti-horário 
+  
+    mercury.rotateY(mercuryRotationSpeed);
+    mercury.rotateAroundPoint(centerRevolution, (mercuryRevolutionSpeed), axisRevolution);
 
-    mercury.rotation.y += mercuryRotationSpeed;
-    mercuryRevolutionAngle -= (mercuryRevolutionSpeed * Math.PI)/180;
-    mercury.position.x = Math.cos(mercuryRevolutionAngle) * mercuryDistance;
-    mercury.position.z = Math.sin(mercuryRevolutionAngle) * mercuryDistance;
+    venus.rotateY(-venusRotationSpeed);
+    venus.rotateAroundPoint(centerRevolution, (venusRevolutionSpeed), axisRevolution);
 
-    venus.rotation.y -= venusRotationSpeed;
-    venusRevolutionAngle -= (venusRevolutionSpeed * Math.PI)/180;
-    venus.position.x = Math.cos(venusRevolutionAngle) * venusDistance;
-    venus.position.z = Math.sin(venusRevolutionAngle) * venusDistance;
+    earth.rotateY(earthRotationSpeed);
+    earth.rotateAroundPoint(centerRevolution, (earthRevolutionSpeed), axisRevolution);
 
-    earth.rotation.y += earthRotationSpeed;    
-    earthRevolutionAngle -= (earthRevolutionSpeed * Math.PI)/180;
-    earth.position.x = Math.cos(earthRevolutionAngle) * earthDistance;
-    earth.position.z = Math.sin(earthRevolutionAngle) * earthDistance;
+    moon.rotateY(moonRotationSpeed);
+    // Compensa a rotação da Terra, que a Lua acompanha por causa do parentesco
+    moon.rotateAroundPoint(centerRevolution, -(earthRotationSpeed), axisRevolution);
+    // Agora faço o movimento de revolução da Lua ao redor da Terra
+    moon.rotateAroundPoint(centerRevolution, (moonRevolutionSpeed), axisRevolution);
 
-    moon.rotation.y += moonRotationSpeed;
-    //moonRevolutionAngle -= (moonRevolutionSpeed * Math.PI)/180;
-    moonRevolutionAngle += 50*(earthRotationSpeed * Math.PI)/180;
-    moon.position.x = Math.cos(moonRevolutionAngle) * moonDistance;
-    moon.position.z = Math.sin(moonRevolutionAngle) * moonDistance;
+    mars.rotateY(marsRotationSpeed);
+    mars.rotateAroundPoint(centerRevolution, (marsRevolutionSpeed), axisRevolution);
 
-    mars.rotation.y += marsRotationSpeed;
-    marsRevolutionAngle -= (marsRevolutionSpeed * Math.PI)/180;
-    mars.position.x = Math.cos(marsRevolutionAngle) * marsDistance;
-    mars.position.z = Math.sin(marsRevolutionAngle) * marsDistance;
+    jupiter.rotateY(jupiterRotationSpeed);
+    jupiter.rotateAroundPoint(centerRevolution, (jupiterRevolutionSpeed), axisRevolution);
 
-    jupiter.rotation.y += jupiterRotationSpeed;
-    jupiterRevolutionAngle -= (jupiterRevolutionSpeed * Math.PI)/180;
-    jupiter.position.x = Math.cos(jupiterRevolutionAngle) * jupiterDistance;
-    jupiter.position.z = Math.sin(jupiterRevolutionAngle) * jupiterDistance;
+    saturn.rotateY(saturnRotationSpeed);
+    saturn.rotateAroundPoint(centerRevolution, (saturnRevolutionSpeed), axisRevolution);
+    // Compensa a rotação de Saturno, que o anel acompanha por causa do parentesco
+    // Antes tenho que desfazer a inclinação do anel, pra rotação ocorrer de maneira correta
+    saturnRing.rotateX(-saturnRingTilt);
+    saturnRing.rotateY(-saturnRotationSpeed);
+    saturnRing.rotateX(saturnRingTilt);
 
-    saturn.rotation.y += saturnRotationSpeed;
-    saturnRevolutionAngle -= (saturnRevolutionSpeed * Math.PI)/180;
-    saturn.position.x = Math.cos(saturnRevolutionAngle) * saturnDistance;
-    saturn.position.z = Math.sin(saturnRevolutionAngle) * saturnDistance;
-    //saturnRing.rotation.y -= saturnRotationSpeed;
-    
+    uranus.rotateY(-uranusRotationSpeed);
+    uranus.rotateAroundPoint(centerRevolution, (uranusRevolutionSpeed), axisRevolution);
 
-    uranus.rotation.y -= uranusRotationSpeed;
-    uranusRevolutionAngle -= (uranusRevolutionSpeed * Math.PI)/180;
-    uranus.position.x = Math.cos(uranusRevolutionAngle) * uranusDistance;
-    uranus.position.z = Math.sin(uranusRevolutionAngle) * uranusDistance;
-    
-    neptune.rotation.y += neptuneRotationSpeed;
-    neptuneRevolutionAngle -= (neptuneRevolutionSpeed * Math.PI)/180;
-    neptune.position.x = Math.cos(neptuneRevolutionAngle) * neptuneDistance;
-    neptune.position.z = Math.sin(neptuneRevolutionAngle) * neptuneDistance;
-    
-    pluto.rotation.y += plutoRotationSpeed;
-    plutoRevolutionAngle -= (plutoRevolutionSpeed * Math.PI)/180;
-    pluto.position.x = Math.cos(plutoRevolutionAngle) * plutoDistance;
-    pluto.position.z = Math.sin(plutoRevolutionAngle) * plutoDistance;
+    neptune.rotateY(neptuneRotationSpeed);
+    neptune.rotateAroundPoint(centerRevolution, (neptuneRevolutionSpeed), axisRevolution);
+   
+    pluto.rotateY(plutoRotationSpeed);
+    pluto.rotateAroundPoint(centerRevolution, (plutoRevolutionSpeed), axisRevolution);
 
-}
-
-function adicionaObjetosNaCena() {
-    sun.add(mercury);
-    sun.add(venus); earth.add(moon);
-    sun.add(earth);
-    sun.add(mars);
-    sun.add(jupiter);
-    sun.add(saturn); saturn.add(saturnRing);
-    sun.add(uranus);
-    sun.add(neptune);
-
-    
-    sun.add(sunlight);
-    scene.add(sun);
 }
 
 function changeGlobalSpeed(globalRotationSpeed, globalRevolutionSpeed) {
     mercuryRotationSpeed *= globalRotationSpeed;
     mercuryRevolutionSpeed *= globalRevolutionSpeed;
+
     venusRotationSpeed *= globalRotationSpeed;
     venusRevolutionSpeed *= globalRevolutionSpeed;
+
     earthRotationSpeed *= globalRotationSpeed;
     earthRevolutionSpeed *= globalRevolutionSpeed;
+
+    moonRotationSpeed *= globalRotationSpeed;
+    moonRevolutionSpeed *= globalRevolutionSpeed;
+
     marsRotationSpeed *= globalRotationSpeed;
     marsRevolutionSpeed *= globalRevolutionSpeed;
+
     jupiterRotationSpeed *= globalRotationSpeed;
     jupiterRevolutionSpeed *= globalRevolutionSpeed;
+
     saturnRotationSpeed *= globalRotationSpeed;
     saturnRevolutionSpeed *= globalRevolutionSpeed;
+
     uranusRotationSpeed *= globalRotationSpeed;
     uranusRevolutionSpeed *= globalRevolutionSpeed;
+
     neptuneRotationSpeed *= globalRotationSpeed;
     neptuneRevolutionSpeed *= globalRevolutionSpeed;
+
     plutoRotationSpeed *= globalRotationSpeed;
     plutoRevolutionSpeed *= globalRevolutionSpeed;
 }
